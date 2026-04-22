@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Large medical data
+*.nii.gz
+*.zip
+*.model
+*.pth
+
+# nnUNet models
+nnunet_models/
+
+# Outputs
+output/
+
+# Temp files
+*.log
+*.tmp
+
+# IDE
+.vscode/
+.idea/

@@ -1,0 +1,30 @@
+# ─────────────────────────────────────────────────────────────
+# requirements.txt
+# Medical Imaging 3D Pipeline
+# Python 3.9+ required
+# ─────────────────────────────────────────────────────────────
+
+# ── DICOM / NIfTI I/O ──────────────────────────────────────
+pydicom>=2.4.3
+SimpleITK>=2.3.0
+nibabel>=5.1.0
+
+# ── Image processing ───────────────────────────────────────
+numpy>=1.24.0
+scipy>=1.11.0
+scikit-image>=0.21.0      # marching cubes fallback
+
+# ── Segmentation ───────────────────────────────────────────
+TotalSegmentator>=2.0.0   # installs torch, nnunet automatically
+
+# ── nnU-Net tumour detection ───────────────────────────────
+nnunetv2>=2.2.0
+
+# ── 3D mesh ────────────────────────────────────────────────
+vtk>=9.2.0                # primary mesh generation
+trimesh>=4.0.0            # GLB/GLTF export
+pygltflib>=1.16.0         # GLTF utilities
+
+# ── Utilities ──────────────────────────────────────────────
+tqdm>=4.65.0
+requests>=2.31.0
