@@ -1,173 +1,246 @@
-# Medical Imaging 3D Pipeline
+# 🧠 Medical Imaging 3D Pipeline
 
-DICOM CT scans → full organ segmentation → tumour detection → 3D meshes → VR
+### CT Scan → Organ Segmentation → Tumour Detection → 3D Visualization
+
+An end-to-end pipeline for processing 3D medical CT scans using deep learning.
+This project performs **automatic organ segmentation, tumour detection, and 3D mesh generation** for visualization and analysis.
 
 ---
 
-## File Structure
+## 🚀 Pipeline Overview
 
+```text
+DICOM CT Scan
+      ↓
+Preprocessing (HU windowing + resampling)
+      ↓
+TotalSegmentator (multi-organ segmentation)
+      ↓
+ROI Extraction
+      ↓
+nnU-Net Tumour Detection
+      ↓
+3D Mesh Generation (OBJ / GLB)
 ```
+
+---
+
+## 📁 Project Structure
+
+```text
 medical_pipeline/
-├── step1_load_dicom.py        # DICOM → preprocessed NIfTI
-├── step2_totalsegmentator.py  # Full-body organ segmentation (104 organs)
-├── step3_nnunet_tumour.py     # Tumour detection per organ
-├── step4_mesh_generation.py   # NIfTI masks → OBJ + GLB meshes
-├── run_pipeline.py            # Master runner (all steps)
+├── data/                         # Input CT scan (DICOM format)
+│   └── dicom_series/
+│
+├── nnunet_models/                # Folder for pretrained models (not included)
+│   └── nnUNet/
+│       └── 3d_fullres/
+│           └── Task006_Lung/
+│               └── nnUNetTrainer__nnUNetPlansv2.1/
+│                   └── (model files go here)
+│
+├── step1_load_dicom.py           # DICOM → preprocessed NIfTI
+├── step2_totalsegmentator.py     # Organ segmentation
+├── step3_nnunet_tumour.py        # Tumour detection
+├── step4_mesh_generation.py      # 3D mesh generation
+├── run_pipeline.py               # Run entire pipeline
+│
 ├── requirements.txt
-└── output/
-    ├── preprocessed.nii.gz
-    ├── organ_colors.json
-    ├── tumour_findings.json
-    ├── segmentations/          ← one .nii.gz per organ (104 files)
-    ├── tumours/                ← tumour masks + predictions
-    └── meshes/
-        ├── manifest.json       ← used by the 3D viewer
-        ├── liver.obj / .glb
-        ├── lungs.obj / .glb
-        ├── lung_tumour.obj / .glb   ← only if tumour detected
-        └── ...
+└── output/                       # Generated automatically
 ```
 
 ---
 
-## Quick Start
+## ⚠️ Important Notes
 
-### 1. Install dependencies
+* Pretrained nnU-Net model weights are **not included** due to size limits
+* Output files are generated after running the pipeline
+* Ensure correct folder structure before running
+
+---
+
+## 📥 Model Setup (Required)
+
+You must download pretrained nnU-Net models before running tumour detection.
+
+### 🔹 Steps:
+
+1. Download pretrained models from:
+   👉 https://zenodo.org/records/4485926
+
+2. Extract the downloaded files
+
+3. Place them inside the following directory:
+
+```text
+nnunet_models/
+   nnUNet/
+      3d_fullres/
+         Task006_Lung/
+            nnUNetTrainer__nnUNetPlansv2.1/
+               fold_0/
+               fold_1/
+               fold_2/
+               fold_3/
+               fold_4/
+```
+
+> ⚠️ Ensure all fold folders are present
+
+---
+
+## 🛠️ Installation
 
 ```bash
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate          # Windows: venv\Scripts\activate
+
+# Activate environment
+# Windows:
+venv\Scripts\activate
+# Linux / WSL:
+source venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2. Set nnU-Net environment variables
+---
+
+## ⚙️ Environment Setup
+
+Set nnU-Net results directory:
 
 ```bash
-export nnUNet_raw=/path/to/nnunet_raw
-export nnUNet_preprocessed=/path/to/nnunet_preprocessed
-export nnUNet_results=/path/to/nnunet_models
+# Linux / WSL
+export RESULTS_FOLDER=./nnunet_models
+
+# Windows (PowerShell)
+setx RESULTS_FOLDER nnunet_models
 ```
 
-### 3. Download nnU-Net model weights
+Restart terminal after setting environment variable.
 
-You currently have lung nodule weights. Download others as needed:
+---
+
+## ▶️ Running the Pipeline
+
+### 🔹 Basic Run
 
 ```bash
-# Lung nodule (Task006) — already have this
-nnUNetv2_download_pretrained_model_by_url Task006_Lung
-
-# Liver tumour
-nnUNetv2_download_pretrained_model_by_url Task003_Liver
-
-# Kidney tumour
-nnUNetv2_download_pretrained_model_by_url Task064_KiTS19
-
-# Pancreas tumour
-nnUNetv2_download_pretrained_model_by_url Task007_Pancreas
-
-# Colon cancer
-nnUNetv2_download_pretrained_model_by_url Task010_Colon
+python run_pipeline.py --input ./data/dicom_series
 ```
 
-After downloading, set `"enabled": True` for those organs in `step3_nnunet_tumour.py → TASK_REGISTRY`.
+---
 
-### 4. Run the pipeline
+### 🔹 Optional Arguments
 
 ```bash
-# Chest CT scan (lung window)
-python run_pipeline.py --input ./data/dicom_series --window lung
-
-# Abdominal CT scan
-python run_pipeline.py --input ./data/dicom_series --window abdomen
-
-# From ZIP file
-python run_pipeline.py --input ./data/scan.zip
-
-# Fast mode (lower res, ~5x faster) — good for testing
+# Fast mode (lower resolution)
 python run_pipeline.py --input ./data/dicom_series --fast
 
-# No GPU
+# CPU mode
 python run_pipeline.py --input ./data/dicom_series --cpu
 
-# Skip steps already done
+# Skip preprocessing or segmentation
 python run_pipeline.py --input ./data/dicom_series --skip-preprocess --skip-segment
 ```
 
 ---
 
-## Step-by-Step Guide
+## 🧪 Pipeline Breakdown
 
-### Step 1 — DICOM Preprocessing (`step1_load_dicom.py`)
+### 🔹 Step 1 — Preprocessing
 
-- Accepts: DICOM folder, ZIP of DICOM folder, NIfTI file
-- Sorts slices by DICOM position
-- Applies HU windowing (lung: -1000 to 400)
-- Resamples to 1mm isotropic voxels
-- Fixes orientation to RAS+
-- Output: `./output/preprocessed.nii.gz`
+* Converts DICOM → NIfTI
+* Applies HU windowing
+* Resamples to uniform spacing
 
-### Step 2 — TotalSegmentator (`step2_totalsegmentator.py`)
+Output:
 
-- Segments ~104 anatomical structures automatically
-- No manual input needed
-- GPU: ~1 min per scan | CPU: ~20-30 min
-- Each organ gets a unique colour defined in `ORGAN_COLORS`
-- Output: `./output/segmentations/<organ>.nii.gz` (one per organ)
-- Also writes `organ_colors.json` with volumes + colours
-
-### Step 3 — nnU-Net Tumour Detection (`step3_nnunet_tumour.py`)
-
-- Uses TotalSegmentator masks to crop organ ROIs
-- Runs nnU-Net inference on each crop
-- Pastes tumour mask back into full image space
-- Only enabled organs (with downloaded weights) are processed
-- Output: `./output/tumours/<organ>_tumour.nii.gz`
-- Also writes `tumour_findings.json` with volumes + centroids
-
-### Step 4 — Mesh Generation (`step4_mesh_generation.py`)
-
-- Marching cubes on each NIfTI mask (VTK primary, scikit-image fallback)
-- Laplacian smoothing + mesh decimation (keeps ~30% triangles)
-- Saves OBJ (with MTL colours) + GLB (for Three.js / VR)
-- Output: `./output/meshes/`
-- Also writes `manifest.json` — the 3D viewer loads this
+```text
+output/preprocessed.nii.gz
+```
 
 ---
 
-## HU Window Reference
+### 🔹 Step 2 — Organ Segmentation
 
-| Window   | Min HU | Max HU | Use case                    |
-|----------|--------|--------|-----------------------------|
-| lung     | -1000  | 400    | Chest CT, lung parenchyma   |
-| abdomen  | -150   | 250    | Abdominal organs, liver etc |
-| bone     | -500   | 1800   | Skeletal structures         |
-| brain    | 0      | 80     | Head CT, brain tissue       |
+* Uses TotalSegmentator
+* Automatically segments multiple organs
 
----
+Output:
 
-## nnU-Net Task Registry
-
-| Organ     | Task ID   | Labels detected               | Enabled by default |
-|-----------|-----------|-------------------------------|--------------------|
-| lung      | Task006   | Lung nodule / mass            | ✓ (you have this)  |
-| liver     | Task003   | Liver tumour / HCC            | ✗                  |
-| kidney    | Task064   | RCC / cyst                    | ✗                  |
-| pancreas  | Task007   | Pancreatic mass / PDAC        | ✗                  |
-| colon     | Task010   | Colorectal cancer             | ✗                  |
-| brain     | Task001   | Glioma (needs MRI, not CT)    | ✗                  |
+```text
+output/segmentations/
+```
 
 ---
 
-## Next Steps — 3D Viewer & VR
+### 🔹 Step 3 — Tumour Detection
 
-After running the pipeline:
+* Crops organ regions
+* Runs nnU-Net inference
+* Generates tumour masks
 
-1. Load `output/meshes/manifest.json` in your Three.js viewer
-2. Each `organ.glb` file is a separate toggleable mesh
-3. Tumour meshes are flagged `"is_tumour": true` in manifest
-4. For VR: import the same GLB files into Unity/Unreal or use WebXR
+Output:
 
-Ask Claude to generate:
-- `step5_web_server.py` — Flask server to serve meshes + manifest
-- `viewer/` — Three.js viewer with organ toggle checklist
-- `vr/` — WebXR viewer or Unity C# importer script
+```text
+output/tumours/
+output/tumour_findings.json
+```
+
+---
+
+### 🔹 Step 4 — Mesh Generation
+
+* Converts segmentation masks into 3D meshes
+* Outputs OBJ and GLB formats
+
+Output:
+
+```text
+output/meshes/
+```
+
+---
+
+## 📊 HU Window Reference
+
+| Window  | Min HU | Max HU | Use Case         |
+| ------- | ------ | ------ | ---------------- |
+| lung    | -1000  | 400    | Chest CT         |
+| abdomen | -150   | 250    | Abdominal organs |
+| bone    | -500   | 1800   | Skeletal         |
+| brain   | 0      | 80     | Brain CT         |
+
+---
+
+## 🎯 Features
+
+* Automated end-to-end pipeline
+* Multi-organ segmentation
+* Deep learning-based tumour detection
+* 3D mesh generation for visualization
+* Modular and extensible design
+
+---
+
+## 🚀 Future Improvements
+
+* Web-based 3D viewer (Three.js)
+* VR integration (Unity / WebXR)
+* REST API (FastAPI)
+* Multi-organ tumour support
+
+---
+
+## 🧑‍💻 Usage Note
+
+This project is intended for **research and educational purposes** in medical imaging and AI.
+
+---
+
+## 📜 License
+
+For academic use only.
